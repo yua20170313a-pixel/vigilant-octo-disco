@@ -1,0 +1,403 @@
+local allowedPlaceId = 132924924190132
+if game.PlaceId ~= allowedPlaceId then return end
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local task = task
+
+local currentWalkSpeed = 16
+local currentJumpPower = 50
+local infJumpEnabled = false
+local noclipEnabled = false
+local discoEnabled = false
+
+local targetPlayerName = ""
+local selectedTool = "レインボーカーペット"
+
+local toolMap = {
+    ["レインボーカーペット"] = "Rainbow",
+    ["グレネード"] = "InvisibleMine",
+    ["フォースフィールド"] = "ForceField",
+    ["ロケットランチャー"] = "RocketLauncher"
+}
+
+local function applyHumanoidValues(character)
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = currentWalkSpeed or 16
+        humanoid.JumpPower = currentJumpPower or 50
+    end
+end
+
+if Player.Character then applyHumanoidValues(Player.Character) end
+Player.CharacterAdded:Connect(applyHumanoidValues)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled and Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if noclipEnabled and Player.Character then
+        for _, part in pairs(Player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+end)
+if not success or not Rayfield then
+    warn("Rayfield読み込み失敗")
+    return
+end
+
+local Window = Rayfield:CreateWindow({
+   Name = "Discord -< BGHackers",
+   KeySystem = true,
+   KeySettings = {
+      Title = "暗号システム",
+      Subtitle = "キーを入力してください",
+      Note = "Key:GAyXDLoL666sSD",
+      GrabKeyFromSite = false,
+      Key = {"GAyXDLoL666sSD"}
+   }
+})
+
+Rayfield:Notify({
+    Title = "ログイン",
+    Content = "ログインユーザー: " .. (Player.Name or "不明"),
+    Duration = 6.5,
+    Image = 4483362458,
+})
+
+local PlayersTab = Window:CreateTab("プレイヤー", 4483362458)
+PlayersTab:CreateSlider({
+    Name = "移動速度",
+    Range = {0, 100},
+    Increment = 1,
+    Suffix = "WS",
+    CurrentValue = currentWalkSpeed,
+    Flag = "Slider1",
+    Callback = function(value)
+        currentWalkSpeed = value
+        if Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then
+            Player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = value
+        end
+    end,
+})
+PlayersTab:CreateSlider({
+    Name = "ジャンプ力",
+    Range = {0, 200},
+    Increment = 5,
+    Suffix = "JP",
+    CurrentValue = currentJumpPower,
+    Flag = "Slider2",
+    Callback = function(value)
+        currentJumpPower = value
+        if Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then
+            Player.Character:FindFirstChildOfClass("Humanoid").JumpPower = value
+        end
+    end,
+})
+PlayersTab:CreateToggle({
+   Name = "無限ジャンプ",
+   CurrentValue = false,
+   Flag = "ToggleInfJump",
+   Callback = function(Value)
+       infJumpEnabled = Value
+   end,
+})
+PlayersTab:CreateToggle({
+   Name = "ノークリップ",
+   CurrentValue = false,
+   Flag = "ToggleNoclip",
+   Callback = function(Value)
+       noclipEnabled = Value
+   end,
+})
+
+local ItemGiverTab = Window:CreateTab("アイテム配布", 4483362458)
+
+ItemGiverTab:CreateInput({
+    Name = "対象プレイヤー",
+    CurrentValue = "",
+    PlaceholderText = "プレイヤー名を入力",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputPlayer",
+    Callback = function(Text)
+        targetPlayerName = Text or ""
+    end
+})
+
+ItemGiverTab:CreateDropdown({
+    Name = "配布アイテム選択",
+    Options = {"レインボーカーペット","グレネード","フォースフィールド","ロケットランチャー"},
+    CurrentOption = {"レインボーカーペット"},
+    MultipleOptions = false,
+    Flag = "DropdownTools",
+    Callback = function(selected)
+        if selected and #selected > 0 then
+            selectedTool = selected[1]
+        end
+    end
+})
+
+local function giveTool(playerName, toolName)
+    if not playerName or playerName == "" or not toolName or toolName == "" then return end
+    local playerTarget = Players:FindFirstChild(playerName)
+    if not playerTarget then return end
+    local ok, toolInstance = pcall(function()
+        return ReplicatedStorage:FindFirstChild(toolName)
+    end)
+    if not ok or not toolInstance then return end
+    local success, err = pcall(function()
+        local backpack = playerTarget:FindFirstChild("Backpack") or playerTarget:WaitForChild("Backpack", 5)
+        if backpack then
+            toolInstance:Clone().Parent = backpack
+        else
+            local char = playerTarget.Character
+            if char then
+                toolInstance:Clone().Parent = char
+            end
+        end
+    end)
+    if not success then warn("アイテム配布失敗:", err) end
+end
+
+ItemGiverTab:CreateButton({
+    Name = "アイテム配布",
+    Callback = function()
+        if targetPlayerName == "" then
+            warn("プレイヤー名を入力してください")
+            return
+        end
+        if not selectedTool then
+            warn("アイテムを選択してください")
+            return
+        end
+        local toolName = toolMap[selectedTool]
+        giveTool(targetPlayerName, toolName)
+        Rayfield:Notify({
+            Title = "成功",
+            Content = selectedTool.." を "..targetPlayerName.." に配布しました",
+            Duration = 6.5,
+            Image = 4483362458
+        })
+    end
+})
+
+local PointTab = Window:CreateTab("ポイント操作", 4483362458)
+local targetName = ""
+PointTab:CreateInput({
+    Name = "対象プレイヤー",
+    PlaceholderText = "プレイヤー名...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        targetName = Text or ""
+    end,
+})
+PointTab:CreateButton({
+    Name = "キル9999999",
+    Callback = function()
+        if targetName == "" then
+            Rayfield:Notify({Title="エラー", Content="プレイヤー名が空です", Duration=4})
+            return
+        end
+        local target = Players:FindFirstChild(targetName)
+        if target and target:FindFirstChild("leaderstats") then
+            local kills = target.leaderstats:FindFirstChild("Kills")
+            if kills and type(kills.Value) == "number" then
+                kills.Value = 9999999
+                Rayfield:Notify({Title="成功", Content=target.Name.." のキルを 9999999 に設定しました", Duration = 5})
+            else
+                Rayfield:Notify({Title="エラー", Content="対象プレイヤーに 'Kills' がありません", Duration = 5})
+            end
+        else
+            Rayfield:Notify({Title="エラー", Content="プレイヤーが見つからないか leaderstats がありません", Duration = 5})
+        end
+    end,
+})
+
+local WinsTab = Window:CreateTab("勝利操作", 4483362458)
+local WinPos = Vector3.new(232, -4, -3)
+
+WinsTab:CreateButton({
+    Name = "勝利位置にTP",
+    Callback = function()
+        local character = Player.Character or Player.CharacterAdded:Wait()
+        if character and character:IsA("Model") then
+            if character.PrimaryPart then
+                character:SetPrimaryPartCFrame(CFrame.new(WinPos))
+            else
+                character:MoveTo(WinPos)
+            end
+        end
+    end
+})
+
+WinsTab:CreateToggle({
+    Name = "勝利ループ",
+    CurrentValue = false,
+    Flag = "ToggleWinLoop",
+    Callback = function(Value)
+        _G.LoopTeleport = Value
+        task.spawn(function()
+            while _G.LoopTeleport do
+                local character = Player.Character or Player.CharacterAdded:Wait()
+                task.wait(0.5)
+                if character and character:IsA("Model") then
+                    pcall(function()
+                        if character.PrimaryPart then
+                            character:SetPrimaryPartCFrame(CFrame.new(WinPos))
+                        else
+                            character:MoveTo(WinPos)
+                        end
+                    end)
+                end
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.Health = 0
+                end
+                Player.CharacterAdded:Wait()
+                task.wait(0.5)
+            end
+        end)
+    end
+})
+
+local BackdoorsTab = Window:CreateTab("裏機能", 4483362458)
+BackdoorsTab:CreateToggle({
+    Name = "ディスコ効果",
+    CurrentValue = false,
+    Flag = "ToggleDisco",
+    Callback = function(Value)
+        discoEnabled = Value
+    end,
+})
+
+local ColorCorrection = Lighting:FindFirstChild("HackColorCorrection")
+if not ColorCorrection then
+    ColorCorrection = Instance.new("ColorCorrectionEffect")
+    ColorCorrection.Name = "HackColorCorrection"
+    ColorCorrection.Parent = Lighting
+end
+ColorCorrection.TintColor = Color3.new(1,1,1)
+local Counter = 0
+RunService.Heartbeat:Connect(function()
+    if discoEnabled then
+        local function zigzag(X)
+            return math.acos(math.cos(X*math.pi))/math.pi
+        end
+        local hsv = zigzag(Counter)
+        ColorCorrection.TintColor = Color3.fromHSV(hsv,1,1)
+        Lighting.Ambient = Color3.fromHSV(hsv,1,1)
+        Counter = Counter + 0.01
+    end
+end)
+Lighting.TimeOfDay = "15:00"
+
+BackdoorsTab:CreateToggle({
+    Name = "スカイボックス",
+    CurrentValue = false,
+    Flag = "ToggleSkyBox",
+    Callback = function(Value)
+        if Value then
+            if not Lighting:FindFirstChild("HackSky") then
+                local s = Instance.new("Sky")
+                s.Name = "HackSky"
+                s.Parent = Lighting
+                local asset = "rbxthumb://type=Asset&id=140155130942333&w=420&h=420"
+                s.SkyboxBk = asset
+                s.SkyboxDn = asset
+                s.SkyboxFt = asset
+                s.SkyboxLf = asset
+                s.SkyboxRt = asset
+                s.SkyboxUp = asset
+            end
+            Lighting.TimeOfDay = "12:00:00"
+        else
+            local sky = Lighting:FindFirstChild("HackSky")
+            if sky then sky:Destroy() end
+        end
+    end,
+})
+
+_G.DecalSpamEnabled = false
+BackdoorsTab:CreateToggle({
+    Name = "デカールスパム",
+    CurrentValue = false,
+    Flag = "ToggleDecalSpam",
+    Callback = function(Value)
+        _G.DecalSpamEnabled = Value
+        if Value then
+            task.spawn(function()
+                local queue = {game.Workspace}
+                while _G.DecalSpamEnabled do
+                    local root = table.remove(queue,1)
+                    if root then
+                        for _, obj in pairs(root:GetChildren()) do
+                            if obj:IsA("BasePart") then
+                                for _, d in pairs(obj:GetChildren()) do
+                                    if d:IsA("Decal") then pcall(function() d:Destroy() end) end
+                                end
+                                local faces = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
+                                for _, face in pairs(faces) do
+                                    local decal = Instance.new("Decal")
+                                    decal.Texture = "rbxthumb://type=Asset&id=140155130942333&w=420&h=420"
+                                    decal.Face = face
+                                    decal.Parent = obj
+                                end
+                            end
+                            table.insert(queue, obj)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end,
+})
+
+BackdoorsTab:CreateButton({
+   Name = "音楽再生",
+   Callback = function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://1839246711"
+        sound.Volume = math.clamp(10,0,10)
+        sound.Parent = workspace
+        sound:Play()
+   end,
+})
+
+BackdoorsTab:CreateButton({
+   Name = "ヒント表示",
+   Callback = function()
+        local msg = Instance.new("Hint")
+        msg.Parent = workspace
+        msg.Text = "ハックサーバー裏機能アクティブ"
+        task.delay(10, function() if msg and msg.Parent then msg:Destroy() end end)
+   end,
+})
+
+BackdoorsTab:CreateButton({
+   Name = "メッセージ表示",
+   Callback = function()
+        local msg = Instance.new("Message")
+        msg.Parent = workspace
+        msg.Text = "ハックサーバー裏機能アクティブ"
+        task.delay(10, function() if msg and msg.Parent then msg:Destroy() end end)
+   end,
+})
